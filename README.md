@@ -1,1 +1,10 @@
-# ros_arm_control
+## Prerequisites
+python2
+opencv
+ros
+
+## Install
+
+
+## Usage
+
