@@ -7,7 +7,9 @@ import time
 import cv2 as cv
 import numpy as np
 import math
+import collections
 
+MAX_SHAPES_DEQUEUE_SIZE = 20
 
 pub = rospy.Publisher('robotmaker/shape_arm', String, queue_size=10)
 rospy.init_node('detector', anonymous=True)
@@ -28,6 +30,8 @@ def getContours():
         camera.framerate = 30
         rawCapture = PiRGBArray(camera, size=(640, 480))
         time.sleep(0.1)
+        detectedShapes = collections.deque(MAX_SHAPES_DEQUEUE_SIZE * [0], MAX_SHAPES_DEQUEUE_SIZE)
+        previousSize = 0
         for frame in camera.capture_continuous(rawCapture, format="bgr", use_video_port=True):
                 img_color = frame.array
                 img_gray = cv.cvtColor(img_color, cv.COLOR_BGR2GRAY)
@@ -53,8 +57,12 @@ def getContours():
                                 cv.line(img_color, tuple(approx[k][0]), tuple(approx[k+1][0]), (0, 255, 0), 3)
 
                         if cv.isContourConvex(approx):
-#                               print(size)
-                                sendRosMsg(size)
+                                detectedShapes.append(size)
+                                samples = [ item for item, count in collections.Counter(detectedShapes).items() if count > 1]
+                                if len(samples) == 1 and previousSize == size:
+                                        sendRosMsg(size)
+
+                                previousSize = size
                                 setLabel(img_contours, str(size), cnt)
                 cv.imshow("Frame4", img_contours)
                 key3 = cv.waitKey(1) & 0xFF
@@ -62,7 +70,7 @@ def getContours():
                 if key3 == ord("q"):
                         break
 
-                time.sleep(0.5)
+                time.sleep(0.3)
 
 
 def sendRosMsg(size):
